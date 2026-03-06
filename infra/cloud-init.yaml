@@ -1,0 +1,103 @@
+#cloud-config
+# Cloud-init configuration for the Helldivers bot server
+
+# Create the helldivers user with sudo access
+users:
+  - name: helldivers
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+    ssh_authorized_keys:
+      - ${file("/dev/stdin") != "" ? "" : ""}
+
+package_update: true
+package_upgrade: true
+packages:
+  - sqlite3
+  - git
+  - curl
+  - ca-certificates
+  - gnupg
+  - fail2ban
+  - unattended-upgrades
+
+runcmd:
+  # Install Node.js 20.x via NodeSource
+  - mkdir -p /etc/apt/keyrings
+  - curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+  - echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+  - apt-get update
+  - apt-get install -y nodejs
+
+  # Create application directories
+  - mkdir -p /opt/helldivers/app
+  - mkdir -p /opt/helldivers/data
+
+  # Create empty environment file with restricted permissions
+  - touch /opt/helldivers/.env
+  - chmod 600 /opt/helldivers/.env
+
+  # Set ownership
+  - chown -R helldivers:helldivers /opt/helldivers
+
+  # SSH hardening: disable root login and password authentication
+  - sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+  - sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+  - sed -i 's/^#\?MaxAuthTries.*/MaxAuthTries 5/' /etc/ssh/sshd_config
+  - systemctl restart sshd
+
+  # Enable fail2ban for SSH brute-force protection
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # Enable automatic security updates
+  - dpkg-reconfigure -plow unattended-upgrades
+
+  # Enable the systemd service (without starting it)
+  - systemctl daemon-reload
+  - systemctl enable helldivers-bot.service
+
+# Format and mount the additional volume for SQLite data
+fs_setup:
+  - label: helldivers-data
+    filesystem: ext4
+    device: /dev/sdb
+    overwrite: false
+
+mounts:
+  - [/dev/sdb, /opt/helldivers/data, ext4, "defaults,nofail", "0", "2"]
+
+write_files:
+  # systemd service for the bot
+  - path: /etc/systemd/system/helldivers-bot.service
+    content: |
+      [Unit]
+      Description=Helldivers After-Action Report Bot
+      After=network.target
+
+      [Service]
+      User=helldivers
+      WorkingDirectory=/opt/helldivers/app
+      ExecStart=/usr/bin/node dist/index.js
+      Restart=always
+      RestartSec=5
+      Environment=NODE_ENV=production
+      EnvironmentFile=/opt/helldivers/.env
+
+      [Install]
+      WantedBy=multi-user.target
+    permissions: "0644"
+    owner: root:root
+
+  # fail2ban SSH jail configuration
+  - path: /etc/fail2ban/jail.local
+    content: |
+      [sshd]
+      enabled = true
+      port = ssh
+      filter = sshd
+      maxretry = 5
+      bantime = 3600
+      findtime = 600
+    permissions: "0644"
+    owner: root:root

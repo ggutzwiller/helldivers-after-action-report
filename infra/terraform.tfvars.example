@@ -1,0 +1,2 @@
+project_id       = "your-scaleway-project-id"
+allowed_ssh_cidr = "your.ip.address/32"

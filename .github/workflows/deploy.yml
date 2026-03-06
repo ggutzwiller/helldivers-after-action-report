@@ -1,0 +1,43 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# Only one deploy at a time
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    needs: []
+    # Only deploy after CI passes (same event triggers both)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_deploy" \
+            dist/ package.json package-lock.json \
+            helldivers@${{ secrets.SERVER_IP }}:/opt/helldivers/app/
+
+          ssh -i ~/.ssh/id_deploy helldivers@${{ secrets.SERVER_IP }} \
+            "cd /opt/helldivers/app && npm ci --omit=dev && sudo systemctl restart helldivers-bot"

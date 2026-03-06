@@ -1,0 +1,29 @@
+{
+  "name": "helldivers-after-action-report",
+  "version": "1.0.0",
+  "description": "Helldivers 2 after-action report Discord bot",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format cjs --dts",
+    "start": "node dist/index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push"
+  },
+  "dependencies": {
+    "@mistralai/mistralai": "^1.0.0",
+    "better-sqlite3": "^11.0.0",
+    "discord.js": "^14.0.0",
+    "dotenv": "^16.0.0",
+    "drizzle-orm": "^0.35.0",
+    "p-queue": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.0.0",
+    "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.28.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
