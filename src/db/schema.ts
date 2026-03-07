@@ -12,21 +12,31 @@ export const players = sqliteTable("players", {
 
 export const reports = sqliteTable("reports", {
   id: integer("id").primaryKey(),
-  playerId: integer("player_id")
+  submittedBy: integer("submitted_by")
     .notNull()
     .references(() => players.id),
-  missionName: text("mission_name"),
-  difficulty: text("difficulty"),
-  kills: integer("kills"),
-  deaths: integer("deaths"),
-  samples: integer("samples"),
-  objectives: integer("objectives"),
+  shipName: text("ship_name"),
   style: text("style").notNull(),
   narrative: text("narrative"),
   imageUrl: text("image_url"),
   createdAt: integer("created_at")
     .notNull()
     .default(sql`(unixepoch())`),
+});
+
+export const reportPlayerStats = sqliteTable("report_player_stats", {
+  id: integer("id").primaryKey(),
+  reportId: integer("report_id")
+    .notNull()
+    .references(() => reports.id),
+  playerName: text("player_name").notNull(),
+  kills: integer("kills"),
+  accuracy: integer("accuracy"),
+  deaths: integer("deaths"),
+  stimsUsed: integer("stims_used"),
+  samples: integer("samples"),
+  meleeKills: integer("melee_kills"),
+  friendlyFireDamage: integer("friendly_fire_damage"),
 });
 
 // Tracks bot events for the /usage command

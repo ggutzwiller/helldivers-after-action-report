@@ -4,7 +4,7 @@ import {
 } from "discord.js";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { players, reports, events } from "../db/schema.js";
+import { players, reports, reportPlayerStats, events } from "../db/schema.js";
 import { analyzeScreenshot } from "../services/pixtral.js";
 import { reportQueue } from "../services/queue.js";
 import { generateNarrative, STYLES } from "../services/templates.js";
@@ -50,7 +50,7 @@ export async function execute(
   interaction: ChatInputCommandInteraction
 ): Promise<void> {
   const attachment = interaction.options.getAttachment("image", true);
-  const style = (interaction.options.getString("style") ?? "heroique") as Style;
+  const style = (interaction.options.getString("style") ?? "heroic") as Style;
   const lang = (interaction.options.getString("lang") ?? "fr") as Language;
   const l = t(lang);
   const userId = interaction.user.id;
@@ -88,20 +88,34 @@ export async function execute(
       }
 
       // Persist report
-      db.insert(reports)
+      const report = db
+        .insert(reports)
         .values({
-          playerId: player.id,
-          missionName: stats.missionName,
-          difficulty: stats.difficulty,
-          kills: stats.kills,
-          deaths: stats.deaths,
-          samples: stats.samples,
-          objectives: stats.objectives,
+          submittedBy: player.id,
+          shipName: stats.shipName,
           style,
           narrative,
           imageUrl: attachment.url,
         })
-        .run();
+        .returning()
+        .get();
+
+      // Persist per-player stats
+      for (const p of stats.players) {
+        db.insert(reportPlayerStats)
+          .values({
+            reportId: report.id,
+            playerName: p.name,
+            kills: p.kills,
+            accuracy: p.accuracy,
+            deaths: p.deaths,
+            stimsUsed: p.stimsUsed,
+            samples: p.samples,
+            meleeKills: p.meleeKills,
+            friendlyFireDamage: p.friendlyFireDamage,
+          })
+          .run();
+      }
 
       trackEvent("report_success", userId);
 

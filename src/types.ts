@@ -1,18 +1,24 @@
-export interface MissionStats {
-  missionName: string;
-  difficulty: string;
+export interface PlayerStats {
+  name: string;
   kills: number;
+  accuracy: number;
   deaths: number;
+  stimsUsed: number;
   samples: number;
-  objectives: number;
-  playerName: string | null;
+  meleeKills: number;
+  friendlyFireDamage: number;
+}
+
+export interface MissionStats {
+  shipName: string;
+  players: PlayerStats[];
 }
 
 export type Style =
-  | "heroique"
-  | "tragique"
-  | "propagande"
-  | "cynique"
-  | "statistique";
+  | "heroic"
+  | "tragic"
+  | "propaganda"
+  | "cynical"
+  | "statistical";
 
 export type Language = "fr" | "en";
