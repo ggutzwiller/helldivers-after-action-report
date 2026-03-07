@@ -1,17 +1,15 @@
 import type { Language, Style } from "../types.js";
 
 interface Locale {
-  embedMission: string;
+  embedShip: string;
+
   embedKills: string;
   embedDeaths: string;
-  embedKD: string;
   embedSamples: string;
-  embedObjectives: string;
   embedFooter: string;
   embedStatsTitle: (username: string) => string;
   embedMissionsCompleted: string;
   embedTotalKills: string;
-  embedGlobalKD: string;
   embedTotalSamples: string;
   embedTotalDeaths: string;
   embedRecentMissions: string;
@@ -26,17 +24,15 @@ interface Locale {
 }
 
 const fr: Locale = {
-  embedMission: "Mission",
+  embedShip: "Vaisseau",
+
   embedKills: "Kills",
   embedDeaths: "Morts",
-  embedKD: "K/D",
   embedSamples: "Echantillons",
-  embedObjectives: "Objectifs",
-  embedFooter: "Pour la Democratie Geree ! | /report pour generer un rapport",
+  embedFooter: "Une autre tasse de liber-thé ? | /report pour generer un rapport",
   embedStatsTitle: (username) => `Dossier de ${username}`,
   embedMissionsCompleted: "Missions completees",
   embedTotalKills: "Kills totaux",
-  embedGlobalKD: "K/D global",
   embedTotalSamples: "Echantillons collectes",
   embedTotalDeaths: "Morts totales",
   embedRecentMissions: "Dernieres missions",
@@ -48,26 +44,24 @@ const fr: Locale = {
   unknownMission: "Inconnue",
   narrativeLanguageInstruction: "Redige en francais.",
   styleEmbedTitles: {
-    heroique: "Rapport Heroique",
-    tragique: "Rapport Tragique",
-    propagande: "Bulletin de Propagande",
-    cynique: "Rapport Cynique",
-    statistique: "Analyse Statistique",
+    heroic: "Rapport Heroique",
+    tragic: "Rapport Tragique",
+    propaganda: "Bulletin de Propagande",
+    cynical: "Rapport Cynique",
+    statistical: "Analyse Statistique",
   },
 };
 
 const en: Locale = {
-  embedMission: "Mission",
+  embedShip: "Ship",
+
   embedKills: "Kills",
   embedDeaths: "Deaths",
-  embedKD: "K/D",
   embedSamples: "Samples",
-  embedObjectives: "Objectives",
   embedFooter: "For Managed Democracy! | /report to generate a report",
   embedStatsTitle: (username) => `Dossier of ${username}`,
   embedMissionsCompleted: "Missions completed",
   embedTotalKills: "Total kills",
-  embedGlobalKD: "Overall K/D",
   embedTotalSamples: "Samples collected",
   embedTotalDeaths: "Total deaths",
   embedRecentMissions: "Recent missions",
@@ -79,11 +73,11 @@ const en: Locale = {
   unknownMission: "Unknown",
   narrativeLanguageInstruction: "Write in English.",
   styleEmbedTitles: {
-    heroique: "Heroic Report",
-    tragique: "Tragic Report",
-    propagande: "Propaganda Bulletin",
-    cynique: "Cynical Report",
-    statistique: "Statistical Analysis",
+    heroic: "Heroic Report",
+    tragic: "Tragic Report",
+    propaganda: "Propaganda Bulletin",
+    cynical: "Cynical Report",
+    statistical: "Statistical Analysis",
   },
 };
 
