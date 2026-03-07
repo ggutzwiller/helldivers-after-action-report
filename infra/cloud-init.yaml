@@ -1,18 +1,20 @@
 #cloud-config
-# Cloud-init configuration for the Helldivers bot server
+# Cloud-init configuration for the Helldivers bot server (Debian Trixie)
 
 # Create the helldivers user with sudo access
 users:
+  - default
   - name: helldivers
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
     groups: sudo
     ssh_authorized_keys:
-      - ${file("/dev/stdin") != "" ? "" : ""}
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOPRfWYs1M5cgKFIBkVGNTPMki4rDsGPO+y9qp2tXaxh helldivers-bot-deploy
 
 package_update: true
 package_upgrade: true
 packages:
+  - rsync
   - sqlite3
   - git
   - curl
@@ -23,10 +25,7 @@ packages:
 
 runcmd:
   # Install Node.js 20.x via NodeSource
-  - mkdir -p /etc/apt/keyrings
-  - curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-  - echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
-  - apt-get update
+  - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
   - apt-get install -y nodejs
 
   # Create application directories
@@ -56,16 +55,6 @@ runcmd:
   # Enable the systemd service (without starting it)
   - systemctl daemon-reload
   - systemctl enable helldivers-bot.service
-
-# Format and mount the additional volume for SQLite data
-fs_setup:
-  - label: helldivers-data
-    filesystem: ext4
-    device: /dev/sdb
-    overwrite: false
-
-mounts:
-  - [/dev/sdb, /opt/helldivers/data, ext4, "defaults,nofail", "0", "2"]
 
 write_files:
   # systemd service for the bot

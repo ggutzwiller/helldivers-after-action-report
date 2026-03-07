@@ -1,13 +1,9 @@
-# Sorties utiles apres le deploiement
-
 output "server_ip" {
-  value       = scaleway_instance_ip.main.address
+  value       = length(scaleway_instance_server.bot.public_ips) > 0 ? scaleway_instance_server.bot.public_ips[0].address : "pending"
   description = "Adresse IP publique du serveur"
-  # Pour Hetzner : hcloud_server.bot.ipv4_address
 }
 
 output "ssh_command" {
-  value       = "ssh helldivers@${scaleway_instance_ip.main.address}"
+  value       = length(scaleway_instance_server.bot.public_ips) > 0 ? "ssh helldivers@${scaleway_instance_server.bot.public_ips[0].address}" : "pending"
   description = "Commande SSH pour se connecter au serveur"
-  # Pour Hetzner : "ssh helldivers@${hcloud_server.bot.ipv4_address}"
 }

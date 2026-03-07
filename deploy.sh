@@ -11,18 +11,24 @@ if [[ -z "$SERVER_IP" ]]; then
   exit 1
 fi
 
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_helldivers}"
+REMOTE="helldivers@${SERVER_IP}"
+REMOTE_DIR="/opt/helldivers/app"
+
 echo "=> Construction du projet..."
 npm run build
 
 echo "=> Synchronisation des fichiers vers ${SERVER_IP}..."
-rsync -avz --delete \
-  dist/ \
+rsync -avz -e "ssh -i ${SSH_KEY}" \
+  dist \
+  src/db/schema.ts \
+  drizzle.config.ts \
   package.json \
   package-lock.json \
-  "helldivers@${SERVER_IP}:/opt/helldivers/app/"
+  "${REMOTE}:${REMOTE_DIR}/"
 
 echo "=> Installation des dependances et redemarrage du service..."
-ssh "helldivers@${SERVER_IP}" \
-  "cd /opt/helldivers/app && npm ci --omit=dev && sudo systemctl restart helldivers-bot"
+ssh -i "${SSH_KEY}" "${REMOTE}" \
+  "cd ${REMOTE_DIR} && npm ci --omit=dev && sudo systemctl restart helldivers-bot"
 
 echo "Deployed successfully"
