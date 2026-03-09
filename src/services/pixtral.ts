@@ -1,7 +1,10 @@
 import { Mistral } from "@mistralai/mistralai";
 import type { MissionStats, PlayerStats } from "../types.js";
+import type { TokenUsage } from "./costs.js";
 
 const client = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
+
+export const PIXTRAL_MODEL = "pixtral-large-latest";
 
 const EXTRACTION_PROMPT = `Tu es un analyseur de screenshots de fin de mission Helldivers 2.
 Analyse cette image et extrais les statistiques de mission au format JSON strict.
@@ -58,12 +61,17 @@ function parsePlayer(raw: Record<string, unknown>): PlayerStats {
   };
 }
 
+export interface AnalysisResult {
+  stats: MissionStats;
+  usage: TokenUsage;
+}
+
 export async function analyzeScreenshot(
   imageUrl: string
-): Promise<MissionStats> {
+): Promise<AnalysisResult> {
   console.log("[Pixtral] Sending image for analysis...");
   const response = await client.chat.complete({
-    model: "pixtral-large-latest",
+    model: PIXTRAL_MODEL,
     messages: [
       {
         role: "user",
@@ -99,8 +107,16 @@ export async function analyzeScreenshot(
     players.push(parsePlayer(parsed));
   }
 
+  const usage: TokenUsage = {
+    inputTokens: response.usage?.promptTokens ?? 0,
+    outputTokens: response.usage?.completionTokens ?? 0,
+  };
+
   return {
-    shipName: parsed.shipName ?? "Unknown",
-    players,
+    stats: {
+      shipName: parsed.shipName ?? "Unknown",
+      players,
+    },
+    usage,
   };
 }

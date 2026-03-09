@@ -1,4 +1,4 @@
-import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, text, real } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const players = sqliteTable("players", {
@@ -37,6 +37,19 @@ export const reportPlayerStats = sqliteTable("report_player_stats", {
   samples: integer("samples"),
   meleeKills: integer("melee_kills"),
   friendlyFireDamage: integer("friendly_fire_damage"),
+});
+
+// Tracks API costs for budget monitoring
+export const apiCosts = sqliteTable("api_costs", {
+  id: integer("id").primaryKey(),
+  model: text("model").notNull(),
+  inputTokens: integer("input_tokens").notNull(),
+  outputTokens: integer("output_tokens").notNull(),
+  estimatedCostEur: real("estimated_cost_eur").notNull(),
+  discordId: text("discord_id"),
+  createdAt: integer("created_at")
+    .notNull()
+    .default(sql`(unixepoch())`),
 });
 
 // Tracks bot events for the /usage command

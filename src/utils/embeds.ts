@@ -8,6 +8,7 @@ const STYLE_CONFIG: Record<Style, { color: number; emoji: string }> = {
   propaganda: { color: 0x00ff00, emoji: "🦅" },
   cynical: { color: 0x808080, emoji: "🙄" },
   statistical: { color: 0x4169e1, emoji: "📊" },
+  random: { color: 0xff69b4, emoji: "🎲" },
 };
 
 export function buildReportEmbed(

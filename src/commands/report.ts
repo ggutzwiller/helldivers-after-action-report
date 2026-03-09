@@ -5,9 +5,11 @@ import {
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { players, reports, reportPlayerStats, events } from "../db/schema.js";
-import { analyzeScreenshot } from "../services/pixtral.js";
-import { reportQueue } from "../services/queue.js";
-import { generateNarrative, STYLES } from "../services/templates.js";
+import { analyzeScreenshot, PIXTRAL_MODEL } from "../services/pixtral.js";
+import { reportQueue, isQueueFull } from "../services/queue.js";
+import { generateNarrative, STYLES, NARRATIVE_MODEL } from "../services/templates.js";
+import { checkRateLimit, recordRequest } from "../services/ratelimit.js";
+import { trackApiCost, isBudgetAvailable, isBudgetWarning } from "../services/costs.js";
 import type { Language, Style } from "../types.js";
 import { buildReportEmbed } from "../utils/embeds.js";
 import { t } from "../utils/locale.js";
@@ -28,7 +30,8 @@ export const data = new SlashCommandBuilder()
       .setDescription("Style du rapport")
       .setRequired(false)
       .addChoices(
-        ...STYLES.map((s) => ({ name: s.charAt(0).toUpperCase() + s.slice(1), value: s }))
+        { name: "🎲 Random", value: "random" },
+        ...STYLES.filter((s) => s !== "random").map((s) => ({ name: s.charAt(0).toUpperCase() + s.slice(1), value: s }))
       )
   )
   .addStringOption((opt) =>
@@ -54,7 +57,9 @@ export async function execute(
   const lang = (interaction.options.getString("lang") ?? "fr") as Language;
   const l = t(lang);
   const userId = interaction.user.id;
+  const guildId = interaction.guildId;
 
+  // Validate image format/size
   const validation = validateImage(attachment, lang);
   if (!validation.valid) {
     trackEvent("invalid_image", userId, validation.reason);
@@ -62,12 +67,64 @@ export async function execute(
     return;
   }
 
+  // Check rate limits
+  const rateLimit = checkRateLimit(userId, guildId);
+  if (!rateLimit.allowed) {
+    const minutes = Math.ceil(rateLimit.retryAfterMs / 60_000);
+    const message =
+      rateLimit.reason === "user"
+        ? l.errorRateLimitUser(minutes)
+        : l.errorRateLimitGuild(minutes);
+    trackEvent("rate_limited", userId, rateLimit.reason);
+    await interaction.reply({ content: `⏳ ${message}`, ephemeral: true });
+    return;
+  }
+
+  // Check queue capacity
+  const queue = isQueueFull();
+  if (queue.full) {
+    trackEvent("queue_full", userId, `pending:${queue.pending}`);
+    await interaction.reply({
+      content: `⏳ ${l.errorQueueFull}`,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // Check budget
+  const budget = isBudgetAvailable();
+  if (!budget.ok) {
+    console.warn(
+      `[Budget] Monthly budget exceeded: ${budget.spentEur.toFixed(4)}€ / ${budget.budgetEur}€`
+    );
+    trackEvent("budget_exceeded", userId);
+    await interaction.reply({ content: `💸 ${l.errorBudgetExceeded}`, ephemeral: true });
+    return;
+  }
+
   await interaction.deferReply();
 
   try {
     await reportQueue.add(async () => {
-      const stats = await analyzeScreenshot(attachment.url);
-      const narrative = await generateNarrative(stats, style, lang);
+      // Analyze screenshot via Pixtral
+      const { stats, usage: pixtralUsage } = await analyzeScreenshot(attachment.url);
+      trackApiCost(PIXTRAL_MODEL, pixtralUsage, userId);
+
+      // Generate narrative via Mistral Small
+      const { text: narrative, usage: narrativeUsage } = await generateNarrative(
+        stats,
+        style,
+        lang
+      );
+      trackApiCost(NARRATIVE_MODEL, narrativeUsage, userId);
+
+      // Log budget warning if approaching limit
+      if (isBudgetWarning()) {
+        const b = isBudgetAvailable();
+        console.warn(
+          `[Budget] WARNING: Monthly spend at ${b.spentEur.toFixed(4)}€ / ${b.budgetEur}€ (${Math.round((b.spentEur / b.budgetEur) * 100)}%)`
+        );
+      }
 
       // Find or create player
       let player = db
@@ -117,15 +174,23 @@ export async function execute(
           .run();
       }
 
+      // Record rate limit hit only after successful processing
+      recordRequest(userId, guildId);
       trackEvent("report_success", userId);
 
       const embed = buildReportEmbed(stats, narrative, style, lang, attachment.url);
       await interaction.editReply({ embeds: [embed] });
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : l.errorGeneric;
-    const isNotHelldivers = message.includes("not appear") || message.includes("ne semble pas");
-    trackEvent(isNotHelldivers ? "not_helldivers" : "report_error", userId, message);
-    await interaction.editReply({ content: `❌ ${message}` });
+    const rawMessage = error instanceof Error ? error.message : String(error);
+    const isNotHelldivers =
+      rawMessage.includes("not appear") || rawMessage.includes("ne semble pas");
+
+    // Log the full error server-side, but only show safe messages to the user
+    console.error(`[Report] Error for user ${userId}:`, rawMessage);
+    trackEvent(isNotHelldivers ? "not_helldivers" : "report_error", userId, rawMessage);
+
+    const userMessage = isNotHelldivers ? rawMessage : l.errorGeneric;
+    await interaction.editReply({ content: `❌ ${userMessage}` });
   }
 }

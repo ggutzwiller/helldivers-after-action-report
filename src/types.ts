@@ -19,6 +19,7 @@ export type Style =
   | "tragic"
   | "propaganda"
   | "cynical"
-  | "statistical";
+  | "statistical"
+  | "random";
 
 export type Language = "fr" | "en";
